@@ -1,0 +1,48 @@
+services:
+    zabbix-proxy:
+        image: zabbix/zabbix-proxy-mysql:6.0.29-alpine
+        container_name: ${HOSTNAME}
+        hostname: ${HOSTNAME}
+        env_file: 
+          - ./envs/zabbix-proxy/common_proxy.env
+        volumes:
+            - /opt/compmon/scripts/externalscripts:/usr/lib/zabbix/externalscripts
+            - /opt/compmon/tls.psk:/var/lib/zabbix/enc/tls.psk
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/hosts:/etc/hosts
+        restart: always
+        network_mode: host
+
+    mysql:
+      container_name: mysql
+      image: mysql:8.0
+      command:
+        - mysqld
+        - --character-set-server=utf8
+        - --collation-server=utf8_bin
+        - --default-authentication-plugin=caching_sha2_password
+        - --log_bin_trust_function_creators=1
+        - --host-cache-size=0
+        - --skip-log-bin
+      network_mode: host
+      restart: always
+      volumes:
+        - /opt/compmon/mysql:/var/lib/mysql
+      env_file: 
+          - ./envs/zabbix-proxy/common_db.env
+      depends_on:
+        - zabbix-proxy
+
+    zabbix-agent:
+        container_name: zabbix-agent
+        hostname: ${HOSTNAME}
+        image: zabbix/zabbix-agent2:6.0.29-alpine
+        user: root
+        network_mode: host
+        restart: always
+        privileged: true
+        volumes:
+          - /var/run:/var/run
+        env_file: 
+            - ./envs/zabbix-proxy/common_agent.env
